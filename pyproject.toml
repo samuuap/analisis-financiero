@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-ai-agents"
+version = "0.1.0"
+description = "Multi-agent market analysis MVP: ticker in, BUY/HOLD/SELL recommendation out. No order execution."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "market-ai-agents contributors" }]
+keywords = ["ai", "agents", "finance", "market-analysis", "crewai", "deepseek"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = [
+    "crewai",
+    "ddgs",
+    "requests",
+    "python-dotenv",
+    "pydantic>=2.0",
+    "pandas",
+    "numpy",
+    "yfinance",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+]
+
+[project.scripts]
+market-ai-agents = "src.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that hit real external services (DeepSeek, Yahoo Finance, DuckDuckGo)",
+]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/main.py"]
