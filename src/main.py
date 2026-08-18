@@ -48,6 +48,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run offline with deterministic mock data (no network, no API keys).",
     )
+    parser.add_argument(
+        "--language",
+        choices=["en", "es"],
+        default="en",
+        help="Language for the analysis output (default: en).",
+    )
     return parser
 
 
@@ -118,6 +124,7 @@ def run(args: argparse.Namespace) -> int:
         interval=args.interval,
         news_limit=args.news_limit,
         mock=args.mock,
+        language=args.language,
     )
 
     if args.json:

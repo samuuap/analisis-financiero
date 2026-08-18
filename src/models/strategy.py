@@ -49,4 +49,5 @@ class MarketReport(BaseModel):
     technical_analysis: TechnicalAnalysis | None = None
     recommendation: StrategyRecommendation
     sources: list[str] = Field(default_factory=list)
+    depth: str = "standard"
     disclaimer: str = DISCLAIMER

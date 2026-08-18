@@ -67,7 +67,6 @@ class DeepSeekLLM:
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.2,
-            "response_format": {"type": "json_object"},
         }
         try:
             response = requests.post(
@@ -96,7 +95,19 @@ class DeepSeekLLM:
 class MockLLM:
     """Deterministic stand-in for the strategist's LLM (no network, no keys)."""
 
-    def complete_json(self, system: str, prompt: str) -> dict[str, Any]:
+    def complete_json(self, system: str, prompt: str, language: str = "en") -> dict[str, Any]:
+        if language == "es":
+            return {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "summary": "Salida del LLM simulado; no se realizó ningún análisis en vivo.",
+                "bullish_factors": ["Modo simulado: no se calcularon factores alcistas."],
+                "bearish_factors": ["Modo simulado: no se calcularon factores bajistas."],
+                "technical_signal": "NEUTRAL",
+                "news_signal": "NEUTRAL",
+                "risk_factors": ["Modo simulado: el análisis no utiliza datos en vivo."],
+                "invalidating_conditions": [],
+            }
         return {
             "action": "HOLD",
             "confidence": 0.5,

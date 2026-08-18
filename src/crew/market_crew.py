@@ -22,6 +22,7 @@ from src.tasks.technical_task import build_technical_task
 from src.tools.market_data import validate_ticker
 from src.tools.protocols import MarketDataProvider, NewsProvider
 from src.utils.errors import ConfigurationError
+from src.utils.i18n import disclaimer_text
 from src.utils.indicators import build_technical_analysis
 from src.utils.logging import get_logger, new_execution_id
 from src.utils.sentiment import build_news_analysis
@@ -50,10 +51,17 @@ class MarketCrew:
         interval: str = "1d",
         news_limit: int = 10,
         mock: bool = False,
+        language: str = "en",
+        depth: str = "standard",
     ) -> MarketReport:
         symbol = validate_ticker(ticker)
         execution_id = new_execution_id()
         timestamp = datetime.now(UTC)
+        depth = "deep" if depth == "deep" else "standard"
+        if depth == "deep":
+            if period == "1y":
+                period = "2y"
+            news_limit = max(news_limit, 25)
         model = (
             self._settings.deepseek_model
             if not mock
@@ -66,15 +74,20 @@ class MarketCrew:
                 "or run with --mock."
             )
 
-        news_analysis, news_search_timestamp = self._gather_news(symbol, news_limit)
+        news_analysis, news_search_timestamp = self._gather_news(symbol, news_limit, language)
         market_data = self._gather_market(symbol, period, interval)
-        technical_analysis = build_technical_analysis(market_data) if market_data else None
+        technical_analysis = (
+            build_technical_analysis(market_data, language) if market_data else None
+        )
 
         if mock:
-            recommendation = self._recommend_mock(symbol, news_analysis, technical_analysis)
+            recommendation = self._recommend_mock(
+                symbol, news_analysis, technical_analysis, language, depth
+            )
         else:
             recommendation = self._recommend_real(
-                symbol, news_analysis, technical_analysis, period, interval, news_limit
+                symbol, news_analysis, technical_analysis, period, interval, news_limit, language,
+                depth
             )
 
         if technical_analysis is not None:
@@ -96,10 +109,13 @@ class MarketCrew:
             technical_analysis=technical_analysis,
             recommendation=recommendation,
             sources=news_analysis.sources if news_analysis else [],
+            depth=depth,
+            disclaimer=disclaimer_text(language),
         )
 
     def build_crew(self, ticker: str, period: str, interval: str, news_limit: int, llm,
-                   news_analysis=None, technical_analysis=None):
+                   news_analysis=None, technical_analysis=None, language: str = "en",
+                   depth: str = "standard"):
         """Build (but do not run) the sequential CrewAI crew for inspection/testing."""
         from crewai import Crew, Process
 
@@ -110,7 +126,9 @@ class MarketCrew:
         tasks = [
             build_news_task(news_agent, symbol, news_analysis),
             build_technical_task(technical_agent, symbol, technical_analysis),
-            build_strategy_task(strategist_agent, symbol, news_analysis, technical_analysis),
+            build_strategy_task(
+                strategist_agent, symbol, news_analysis, technical_analysis, language, depth
+            ),
         ]
         return Crew(
             agents=[news_agent, technical_agent, strategist_agent],
@@ -119,10 +137,10 @@ class MarketCrew:
             verbose=False,
         )
 
-    def _gather_news(self, symbol: str, news_limit: int):
+    def _gather_news(self, symbol: str, news_limit: int, language: str = "en"):
         try:
             items = self._news_provider.search(symbol, news_limit)
-            return build_news_analysis(symbol, items), datetime.now(UTC)
+            return build_news_analysis(symbol, items, language), datetime.now(UTC)
         except Exception as exc:
             logger.warning("News unavailable for %s: %s", symbol, exc)
             return None, datetime.now(UTC)
@@ -134,27 +152,62 @@ class MarketCrew:
             logger.warning("Market data unavailable for %s: %s", symbol, exc)
             return None
 
-    def _recommend_mock(self, symbol: str, news_analysis, technical_analysis):
-        prompt = build_strategy_prompt(symbol, news_analysis, technical_analysis)
-        data = MockLLM().complete_json(strategy_system_prompt(), prompt)
+    def _recommend_mock(self, symbol: str, news_analysis, technical_analysis, language: str = "en",
+                        depth: str = "standard"):
+        prompt = build_strategy_prompt(symbol, news_analysis, technical_analysis, language, depth)
+        data = MockLLM().complete_json(strategy_system_prompt(), prompt, language)
         return coerce_recommendation(data, symbol)
 
     def _recommend_real(self, symbol: str, news_analysis, technical_analysis,
-                        period: str, interval: str, news_limit: int):
+                        period: str, interval: str, news_limit: int, language: str = "en",
+                        depth: str = "standard"):
         try:
             llm = build_crewai_llm(self._settings)
         except Exception as exc:
             logger.warning("Could not build CrewAI LLM: %s", exc)
             return fallback_recommendation(symbol)
-        try:
-            crew = self.build_crew(
-                symbol, period, interval, news_limit, llm, news_analysis, technical_analysis
-            )
-            result = crew.kickoff()
-            return self._extract_recommendation(result, symbol)
-        except Exception as exc:
-            logger.warning("Crew execution failed for %s: %s", symbol, exc)
+
+        # Run the strategist three times and aggregate: confidence is the mean of the
+        # three runs and the action is decided by majority vote. This smooths the
+        # run-to-run variance inherent in a single LLM decision.
+        recommendations: list[StrategyRecommendation] = []
+        for attempt in range(3):
+            try:
+                crew = self.build_crew(
+                    symbol, period, interval, news_limit, llm, news_analysis,
+                    technical_analysis, language, depth
+                )
+                result = crew.kickoff()
+                recommendations.append(self._extract_recommendation(result, symbol))
+            except Exception as exc:
+                logger.warning(
+                    "Crew execution failed for %s (attempt %d/3): %s",
+                    symbol, attempt + 1, exc,
+                )
+
+        if not recommendations:
             return fallback_recommendation(symbol)
+        return self._aggregate_recommendations(recommendations)
+
+    @staticmethod
+    def _aggregate_recommendations(
+        recommendations: list[StrategyRecommendation],
+    ) -> StrategyRecommendation:
+        """Average confidence across runs and pick the action by majority vote."""
+        if len(recommendations) == 1:
+            return recommendations[0]
+        confidence = round(
+            sum(rec.confidence for rec in recommendations) / len(recommendations), 4
+        )
+        tally: dict[str, int] = {}
+        for rec in recommendations:
+            tally[rec.action.value] = tally.get(rec.action.value, 0) + 1
+        action = max(tally, key=tally.get)
+        base = next(
+            (rec for rec in recommendations if rec.action.value == action),
+            recommendations[0],
+        )
+        return base.model_copy(update={"action": action, "confidence": confidence})
 
     @staticmethod
     def _extract_recommendation(result, symbol: str) -> StrategyRecommendation:

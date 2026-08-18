@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title data-i18n="appTitle">Market AI Agents — Equity Analysis</title>
+  <meta name="description" data-i18n-content="metaDescription" content="Multi-agent equity analysis. Pick a company and receive a BUY, HOLD, or SELL recommendation backed by news sentiment and technical indicators." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <span class="brand-name">Market AI Agents</span>
+      </a>
+      <nav class="lang-switch" role="group" aria-label="Language">
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+        <button type="button" class="lang-btn" data-lang="es">ES</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <p class="eyebrow" data-i18n="eyebrow">Multi-agent equity research</p>
+        <h1 class="hero-title" data-i18n="heroTitle">Analyze companies, not tickers.</h1>
+        <p class="hero-subtitle" data-i18n="heroSubtitle">
+          Pick a company, choose your language, and receive a BUY, HOLD, or SELL
+          recommendation backed by news sentiment and technical indicators.
+        </p>
+      </div>
+    </section>
+
+    <section class="search-section">
+      <div class="container">
+        <div class="search-box">
+          <input
+            type="search"
+            class="search-input"
+            id="search-input"
+            data-i18n-placeholder="searchPlaceholder"
+            placeholder="Search companies…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <div class="search-results" id="search-results" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="trending-section">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-heading">
+            <h2 class="section-title" data-i18n="trendingHeading">Trending now</h2>
+            <p class="section-hint" data-i18n="trendingHint">High-momentum names worth a look.</p>
+          </div>
+        </div>
+        <div class="trending-grid" id="trending-grid" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="selector-section">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-heading">
+            <h2 class="section-title" data-i18n="allCompaniesHeading">All companies</h2>
+            <p class="section-hint" data-i18n="selectHint">Select one to begin.</p>
+          </div>
+          <div class="carousel-nav">
+            <button type="button" class="carousel-btn" id="carousel-prev" data-i18n-aria="prev" aria-label="Scroll left" disabled>&#8592;</button>
+            <button type="button" class="carousel-btn" id="carousel-next" data-i18n-aria="next" aria-label="Scroll right" disabled>&#8594;</button>
+          </div>
+        </div>
+        <div class="carousel">
+          <div class="ticker-track" id="ticker-grid" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="action-bar">
+      <div class="container action-inner">
+        <div class="selection-status">
+          <span class="status-label" data-i18n="selectedLabel">Selected</span>
+          <span class="status-value" id="selected-name">—</span>
+        </div>
+        <button type="button" class="btn-primary" id="analyze-btn" disabled>
+          <span data-i18n="analyze">Analyze</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="results-section" id="results" hidden>
+      <div class="container">
+        <div class="results-toolbar" id="results-toolbar" hidden>
+          <button type="button" class="btn-secondary" id="deepen-btn">
+            <span data-i18n="deepen">Deepen analysis</span>
+          </button>
+        </div>
+        <div id="report" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-note" data-i18n="footerNote">
+        Market AI Agents is an educational research tool. It generates analysis and
+        BUY / HOLD / SELL signals only — it never executes trades and is not connected
+        to any broker. Nothing here is financial advice.
+      </p>
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

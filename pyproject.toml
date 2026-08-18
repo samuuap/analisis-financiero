@@ -28,6 +28,8 @@ dependencies = [
     "pandas",
     "numpy",
     "yfinance",
+    "fastapi",
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +41,7 @@ dev = [
 
 [project.scripts]
 market-ai-agents = "src.main:main"
+market-ai-agents-web = "src.web.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -13,6 +13,7 @@ import pandas as pd
 from src.models.enums import Sentiment
 from src.models.market import MarketData
 from src.models.technical import TechnicalAnalysis
+from src.utils.i18n import normalize_language, sentiment_label
 
 
 def sma(series: pd.Series, window: int) -> pd.Series:
@@ -143,11 +144,11 @@ def determine_technical_signal(ind: dict[str, Any]) -> Sentiment:
     return Sentiment.NEUTRAL
 
 
-def build_technical_analysis(market_data: MarketData) -> TechnicalAnalysis:
+def build_technical_analysis(market_data: MarketData, language: str = "en") -> TechnicalAnalysis:
     """Compute every indicator from ``MarketData`` and package a ``TechnicalAnalysis``."""
     ind = compute_all(market_data.to_dataframe())
     signal = determine_technical_signal(ind)
-    summary = _summarize_technical(ind, signal)
+    summary = _summarize_technical(ind, signal, language)
     return TechnicalAnalysis(
         ticker=market_data.symbol,
         sma20=ind["sma20"],
@@ -168,21 +169,24 @@ def build_technical_analysis(market_data: MarketData) -> TechnicalAnalysis:
     )
 
 
-def _summarize_technical(ind: dict[str, Any], signal: Sentiment) -> str:
+def _summarize_technical(ind: dict[str, Any], signal: Sentiment, language: str = "en") -> str:
+    es = normalize_language(language) == "es"
     parts: list[str] = []
     if ind.get("price") is not None:
-        parts.append(f"price {ind['price']:.2f}")
+        parts.append(f"{'precio' if es else 'price'} {ind['price']:.2f}")
     if ind.get("rsi14") is not None:
         parts.append(f"RSI14 {ind['rsi14']:.1f}")
     sma20, sma50 = ind.get("sma20"), ind.get("sma50")
     if sma20 is not None and sma50 is not None:
         if sma20 > sma50:
-            parts.append("SMA20 above SMA50")
+            parts.append("SMA20 por encima de SMA50" if es else "SMA20 above SMA50")
         elif sma20 < sma50:
-            parts.append("SMA20 below SMA50")
+            parts.append("SMA20 por debajo de SMA50" if es else "SMA20 below SMA50")
         else:
-            parts.append("SMA20 equal to SMA50")
+            parts.append("SMA20 igual a SMA50" if es else "SMA20 equal to SMA50")
     body = "; ".join(parts)
+    label = sentiment_label(signal, language)
+    prefix = f"Señal técnica {label}" if es else f"Technical signal {label}"
     if body:
-        return f"Technical signal {signal.value}. {body}"
-    return f"Technical signal {signal.value}."
+        return f"{prefix}. {body}"
+    return f"{prefix}."

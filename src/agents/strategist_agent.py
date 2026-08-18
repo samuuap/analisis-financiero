@@ -6,8 +6,9 @@ import json
 from typing import Any
 
 from src.models.enums import Action
-from src.models.llm import INJECTION_GUARD
+from src.models.llm import INJECTION_GUARD, _extract_json
 from src.models.strategy import StrategyRecommendation
+from src.utils.i18n import strategy_language_directive
 from src.utils.logging import get_logger
 
 logger = get_logger()
@@ -50,10 +51,20 @@ def build_strategist_agent(llm=None):
     )
 
 
-def build_strategy_prompt(ticker: str, news_analysis, technical_analysis) -> str:
+def build_strategy_prompt(
+    ticker: str, news_analysis, technical_analysis, language: str = "en", depth: str = "standard"
+) -> str:
     """Render the deterministic inputs into the strategist's user prompt."""
     news = news_analysis.model_dump(mode="json") if news_analysis is not None else {}
     tech = technical_analysis.model_dump(mode="json") if technical_analysis is not None else {}
+    deep_directive = ""
+    if depth == "deep":
+        deep_directive = (
+            "\n\nANÁLISIS PROFUNDO: realiza un análisis exhaustivo y de mayor calado. "
+            "Amplía los factores alcistas y bajistas, los riesgos y las condiciones de "
+            "invalidación con mayor granularidad. Desarrolla la tesis en profundidad y "
+            "evita respuestas superficiales o genéricas."
+        )
     return (
         f"Ticker: {ticker}\n\n"
         "Analiza la siguiente información y devuelve ÚNICAMENTE un objeto JSON con las claves: "
@@ -61,6 +72,8 @@ def build_strategy_prompt(ticker: str, news_analysis, technical_analysis) -> str
         "invalidating_conditions.\n\n"
         f"Análisis de noticias (JSON):\n{json.dumps(news, ensure_ascii=False)}\n\n"
         f"Análisis técnico (JSON):\n{json.dumps(tech, ensure_ascii=False)}\n"
+        f"{deep_directive}\n"
+        f"{strategy_language_directive(language)}\n"
     )
 
 
@@ -84,7 +97,7 @@ def coerce_recommendation(data: Any, ticker: str) -> StrategyRecommendation:
         return data
     if isinstance(data, str):
         try:
-            return StrategyRecommendation.model_validate_json(data)
+            data = _extract_json(data)
         except Exception as exc:
             logger.warning("Could not parse strategy JSON: %s", exc)
             return fallback_recommendation(ticker)

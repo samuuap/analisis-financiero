@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from src.models.enums import Sentiment
 from src.models.news import NewsAnalysis, NewsItem
+from src.utils.i18n import normalize_language, sentiment_label
 
 BULLISH_TERMS = {
     "beat",
@@ -119,15 +120,22 @@ def classify_news(items: list[NewsItem]) -> Sentiment:
     return Sentiment.NEUTRAL
 
 
-def build_news_analysis(ticker: str, items: list[NewsItem]) -> NewsAnalysis:
+def build_news_analysis(ticker: str, items: list[NewsItem], language: str = "en") -> NewsAnalysis:
     """Assemble a ``NewsAnalysis`` from raw items (sentiment + summary)."""
     sentiment = classify_news(items)
     sources = sorted({item.source for item in items if item.source})
     themes = [item.title for item in items[:5]]
-    summary = (
-        f"Found {len(items)} news item(s) for {ticker}; "
-        f"overall sentiment is {sentiment.value.lower()}."
-    )
+    label = sentiment_label(sentiment, language)
+    if normalize_language(language) == "es":
+        summary = (
+            f"Se encontraron {len(items)} noticia(s) para {ticker}; "
+            f"el sentimiento general es {label}."
+        )
+    else:
+        summary = (
+            f"Found {len(items)} news item(s) for {ticker}; "
+            f"overall sentiment is {label}."
+        )
     return NewsAnalysis(
         ticker=ticker,
         items=items,

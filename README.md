@@ -144,6 +144,36 @@ print(report.model_dump_json(indent=2))   # full serialized report
 
 See [`examples/run_analysis.py`](examples/run_analysis.py) for a runnable example.
 
+## Web interface
+
+The project ships a self-contained web app (FastAPI + vanilla HTML/CSS/JS, no
+external assets) that lets users pick a company **by name** — they never need to
+know the ticker symbol — choose **English or Spanish**, and receive the full
+`MarketReport`.
+
+```bash
+# Start the server (mock mode is used automatically when no DEEPSEEK_API_KEY):
+python -m src.web
+# or, after install:
+market-ai-agents-web
+```
+
+Then open http://127.0.0.1:8000 in a browser.
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/` | `GET` | Serves the single-page frontend. |
+| `/api/tickers?language=en\|es` | `GET` | Curated, localized company catalog. |
+| `/api/analyze` | `POST` | Body `{"symbol": "NVDA", "language": "en", "mock": false}` → full report. |
+
+Environment overrides: `MARKET_WEB_HOST` (default `127.0.0.1`), `MARKET_WEB_PORT`
+(default `8000`), `MARKET_WEB_RELOAD` (default off).
+
+The catalog is a curated list of recognizable large-caps (see
+[`src/web/catalog.py`](src/web/catalog.py)). The backend rejects unknown symbols
+with `400`, degrades to mock mode when no key is present, and returns the same
+`MarketReport` shape as the CLI — analysis only, never order execution.
+
 ## Testing
 
 ```bash
